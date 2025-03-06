@@ -1,21 +1,16 @@
-/**
- * \par Copyright (C), 2012-2016, MakeBlock
- * @file    MeMegaPiDCMotorTest.ino
- * @author  MakeBlock
- * @version V1.0.0
- * @date    2016/05/17
- * @brief   Description: this file is sample code for MegaPi DC motor device.
- *
- * Function List:
- *    1. void MeMegaPiDCMotorTest::run(int16_t speed)
- *    2. void MeMegaPiDCMotorTest::stop(void)
- *
- * \par History:
- * <pre>
- * <Author>     <Time>        <Version>      <Descr>
- * Mark Yan     2016/05/17    1.0.0          build the new
- * </pre>
- */
+//
+//Forward - Right Inversed Direction
+//        - Left Normal Direction
+//
+//Reverse - Right Normal Direction
+//        - Left Inversed Direction
+//
+//Right - Right Reversing
+//      - Left Forward
+//
+//Left  - Right Forward
+//Right - Left Reversing
+//
 #include "MeMegaPi.h"
 
 MeMegaPiDCMotor motorRight(M1);
@@ -23,18 +18,18 @@ MeMegaPiDCMotor motorRight(M1);
 MeMegaPiDCMotor motorLeft(M2);
 
 
-
-uint8_t motorSpeed = 500;
+uint8_t motorSpeed = 250;
 
 void setup()
 {
+  Serial.begin(9600);
 }
 
 void loop()
 {
-  motorRight.run(motorSpeed); /* value: between -255 and 255. */
+  motorRight.run(-motorSpeed); /* value: between -255 and 255. */
   motorLeft.run(motorSpeed); /* value: between -255 and 255. */
-  
+  Serial.println("Forward");
   delay(2000);
 
   motorRight.stop();
@@ -42,9 +37,9 @@ void loop()
   
   delay(100);
 
-  motorRight.run(-motorSpeed);
+  motorRight.run(motorSpeed);
   motorLeft.run(-motorSpeed);
-  
+  Serial.println("Reverse");
   delay(2000);
 
   motorRight.stop();
