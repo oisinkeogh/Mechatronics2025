@@ -1,0 +1,121 @@
+//
+//Forward - Right Inversed Direction
+//        - Left Normal Direction
+//
+//Reverse - Right Normal Direction
+//        - Left Inversed Direction
+//
+//Right - Right Reversing
+//      - Left Forward
+//
+//Left  - Right Forward
+//Right - Left Reversing
+//
+
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <Arduino.h>
+#include <MeMegaPi.h>
+#include "MeEEPROM.h"
+
+MeMegaPiDCMotor motorRight(M1);
+MeMegaPiDCMotor motorLeft(M2);
+MeUltrasonicSensor ultraSensor(PORT7);
+
+unsigned int motorSpeed = 255;
+unsigned int objectMotorSpeed = 250;
+unsigned int turnTime = 250
+unsigned int distanceRight = 0;
+unsigned int distanceLeft = 0;
+
+void setup()
+{
+  Serial.begin(9600);
+}
+
+void robotStop()  {
+  motorRight.stop();
+  motorLeft.stop();
+}
+
+void robotRun(int speed) {
+  motorRight.run(-speed); /* value: between -255 and 255. */
+  motorLeft.run(speed); /* value: between -255 and 255. */
+  Serial.println("Forward");
+}
+void turnRight(int speed) {
+  motorRight.run(speed); /* value: between -255 and 255. */
+  motorLeft.run(speed); /* value: between -255 and 255. */
+  Serial.println("Right");
+  delay(turnTime);
+  robotStop();
+}
+void turnLeft(int speed) {
+  motorRight.run(-speed); /* value: between -255 and 255. */
+  motorLeft.run(-speed); /* value: between -255 and 255. */
+  Serial.println("Left");
+  delay(turnTime);
+  robotStop();
+}
+void sensorReading()  {
+  Serial.print("Distance : ");
+  Serial.print(ultraSensor.distanceCm());
+  Serial.println(" cm");
+  delay(100);
+}
+void detectingObject()  {
+  robotStop();  //Stops Robot
+  turnRight(motorSpeed);
+  ultraSensor.distanceCm() = distanceRight;
+  turnLeft(motorSpeed);
+  ultraSensor.distanceCm() = distanceLeft;
+    if (distanceRight > distanceLeft) {
+      rightChecking();
+      }
+    }
+    else  {
+      leftChecking();
+    }
+}
+
+void rightChecking()  {
+  turnRight();
+  robotRun(objectMotorSpeed);
+  turnLeft();
+    if ultraSensor.distance() < 30  {
+      rightChecking();
+  }
+    else  {
+      robotRun(objectMotorSpeed);
+      turnLeft(); //line checking needed here
+  }
+}
+void leftChecking() {
+  turnLeft();
+  robotRun(objectMotorSpeed);
+  turnRight();
+    if ultraSensor.distance() < 30  {
+      leftChecking();
+  }
+    else  {
+      robotRun(objectMotorSpeed);
+      turnRight();//line checking needed here
+  }
+}
+
+
+
+void loop()
+{
+  sensorReading();
+  if (ultraSensor.distanceCm() > 30)  {
+  robotRun(motorSpeed); //Forward
+  }
+  else  {
+    detectingObject();
+  }
+  
+
+  //robotRun(-motorSpeed);  //Reverse
+  
+}
