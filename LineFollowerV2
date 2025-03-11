@@ -1,0 +1,60 @@
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <Arduino.h>
+#include <MeMegaPi.h>
+#include "MeEEPROM.h"
+#include "MeMegaPi.h"
+
+MeMegaPiDCMotor motorRight(M1); //Motor configuration
+MeMegaPiDCMotor motorLeft(M2);
+MeLineFollower lineFinder(PORT6); // Line Follower configuration
+char i=0;
+void setup()
+{
+  Serial.begin(9600); //Configuration of the usb 
+}
+
+void loop()
+{
+  int sensorState = lineFinder.readSensors();
+  
+  switch(sensorState){
+
+    case S1_IN_S2_IN:
+      Serial.println("STAY STRAIGHT"); 
+      motorRight.run(-255); 
+      motorLeft.run(255);
+      break;
+
+    case S1_IN_S2_OUT:
+      Serial.println("RIGHT is outside of black line");
+      motorRight.run(-200); 
+      motorLeft.run(-200); 
+      break;
+
+    case S1_OUT_S2_IN:
+      Serial.println("LEFT is outside of black line");
+      motorRight.run(200); 
+      motorLeft.run(200);
+      break;
+
+    case S1_OUT_S2_OUT: 
+      Serial.println("Sensor 1 and 2 are outside of black line");
+      motorRight.run(-200); 
+      motorLeft.run(-200);
+      delay(1000);
+      motorRight.run(200); 
+      motorLeft.run(200);
+      delay(1000);
+      motorRight.run(-75); 
+      motorLeft.run(75);
+     
+      break;
+
+    default: 
+      break;
+  }
+  
+  delay(100);
+}
+
