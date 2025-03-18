@@ -1,17 +1,3 @@
-//
-//Forward - Right Inversed Direction
-//        - Left Normal Direction
-//
-//Reverse - Right Normal Direction
-//        - Left Inversed Direction
-//
-//Right - Right Reversing
-//      - Left Forward
-//
-//Left  - Right Forward
-//Right - Left Reversing
-//
-
 #include <SoftwareSerial.h>
 #include <Wire.h>
 #include <Arduino.h>
@@ -21,101 +7,148 @@
 MeMegaPiDCMotor motorRight(M1);
 MeMegaPiDCMotor motorLeft(M2);
 MeUltrasonicSensor ultraSensor(PORT7);
+MeLineFollower lineFinder(PORT6);
 
-unsigned int motorSpeed = 255;
-unsigned int objectMotorSpeed = 250;
-unsigned int turnTime = 250
+const unsigned int motorSpeed = 150;
+const unsigned int objectMotorSpeed = 120;
+const unsigned int turnTime = 1500;
 unsigned int distanceRight = 0;
 unsigned int distanceLeft = 0;
+bool objectCheckingMode = false;
+int speedSlow = 100;
 
-void setup()
-{
+void setup() {
   Serial.begin(9600);
 }
 
-void robotStop()  {
+void robotStop() {
   motorRight.stop();
   motorLeft.stop();
 }
 
 void robotRun(int speed) {
-  motorRight.run(-speed); /* value: between -255 and 255. */
-  motorLeft.run(speed); /* value: between -255 and 255. */
+  speed = min(speed, 255);
+  motorRight.run(-speed);
+  motorLeft.run(speed);
   Serial.println("Forward");
 }
+
 void turnRight(int speed) {
-  motorRight.run(speed); /* value: between -255 and 255. */
-  motorLeft.run(speed); /* value: between -255 and 255. */
+  motorRight.run(speed);
+  motorLeft.run(speed);
   Serial.println("Right");
   delay(turnTime);
   robotStop();
 }
+
 void turnLeft(int speed) {
-  motorRight.run(-speed); /* value: between -255 and 255. */
-  motorLeft.run(-speed); /* value: between -255 and 255. */
+  motorRight.run(-speed);
+  motorLeft.run(-speed);
   Serial.println("Left");
   delay(turnTime);
   robotStop();
 }
-void sensorReading()  {
+
+void sensorReading() {
   Serial.print("Distance : ");
   Serial.print(ultraSensor.distanceCm());
   Serial.println(" cm");
   delay(100);
 }
-void detectingObject()  {
-  robotStop();  //Stops Robot
+
+void detectingObject() {
+  robotStop();
   turnRight(motorSpeed);
-  ultraSensor.distanceCm() = distanceRight;
+  distanceRight = ultraSensor.distanceCm();
+  Serial.print("Right Distance: ");
+  Serial.println(distanceRight);
+
   turnLeft(motorSpeed);
-  ultraSensor.distanceCm() = distanceLeft;
-    if (distanceRight > distanceLeft) {
-      rightChecking();
+  delay(1000);
+
+  turnLeft(motorSpeed);
+  distanceLeft = ultraSensor.distanceCm();
+  Serial.print("Left Distance: ");
+  Serial.println(distanceLeft);
+
+  turnRight(motorSpeed);
+  delay(1000);
+
+  if (distanceRight >= distanceLeft) {
+    rightChecking();
+  } else {
+    leftChecking();
+  }
+}
+
+void rightChecking() {
+  turnRight(motorSpeed);  // Turn right
+  robotRun(motorSpeed);  // Move forward after avoiding the object
+  delay(2000);  
+  turnLeft(motorSpeed);  // Return to original direction
+  robotRun(motorSpeed);  // Move forward a little to fully clear the object
+  delay(3000);
+  turnLeft(objectMotorSpeed);  // Return to original direction
+  robotRun(motorSpeed);
+  delay(1000);
+  objectCheckingMode = false;  // Reset after obstacle is fully cleared
+}
+
+void leftChecking() {  
+  turnLeft(motorSpeed);  // Turn left
+  robotRun(motorSpeed);  // Move forward after avoiding the object
+  delay(2000);  
+  turnRight(motorSpeed);  // Return to original direction
+  robotRun(motorSpeed);  // Move forward a little to fully clear the object
+  delay(3000);
+  turnRight(objectMotorSpeed);  // 
+  robotRun(motorSpeed);
+  delay(1000);
+  objectCheckingMode = false;  // Reset after obstacle is fully cleared
+}
+
+void lineFollowing(int sensorState) {
+  switch (sensorState) {
+    case 0:  // Both sensors on black
+      motorRight.run(-motorSpeed);
+      motorLeft.run(motorSpeed);
+      break;
+    case 1:  // Left black, Right white
+      motorRight.run(-speedSlow);
+      motorLeft.run(-speedSlow);
+      break;
+    case 2:  // Left white, Right black
+      motorRight.run(speedSlow);
+      motorLeft.run(speedSlow);
+      break;
+    case 3:  // Both white
+      while (sensorState != 0 || sensorState != 1 || sensorState != 2)  { 
+        motorRight.run(-speedSlow); 
+        motorLeft.run(-speedSlow);
+        delay(500);
+        motorRight.run(-motorSpeed);
+        motorLeft.run(motorSpeed);
+        delay(500);
+        motorRight.run(speedSlow); 
+        motorLeft.run(speedSlow);
+        delay(500);
       }
-    }
-    else  {
-      leftChecking();
-    }
-}
-
-void rightChecking()  {
-  turnRight();
-  robotRun(objectMotorSpeed);
-  turnLeft();
-    if ultraSensor.distance() < 30  {
-      rightChecking();
-  }
-    else  {
-      robotRun(objectMotorSpeed);
-      turnLeft(); //line checking needed here
-  }
-}
-void leftChecking() {
-  turnLeft();
-  robotRun(objectMotorSpeed);
-  turnRight();
-    if ultraSensor.distance() < 30  {
-      leftChecking();
-  }
-    else  {
-      robotRun(objectMotorSpeed);
-      turnRight();//line checking needed here
+      break;
+    default:
+      break;
   }
 }
 
-
-
-void loop()
-{
+void loop() {
+  int sensorState = lineFinder.readSensors();
   sensorReading();
-  if (ultraSensor.distanceCm() > 30)  {
-  robotRun(motorSpeed); //Forward
-  }
-  else  {
-    detectingObject();
-  }
   
+  while (ultraSensor.distanceCm() > 30 && objectCheckingMode == false) {
+    lineFollowing(lineFinder.readSensors());
+  }
 
-  //robotRun(-motorSpeed);  //Reverse
-  
+  objectCheckingMode = true;
+  detectingObject();
+
+  return;  // Prevent immediate return to line-following after obstacle avoidance
 }
