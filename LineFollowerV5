@@ -1,0 +1,62 @@
+
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <Arduino.h>
+#include <MeMegaPi.h>
+#include "MeEEPROM.h"
+#include "MeMegaPi.h"
+MeMegaPiDCMotor motorRight(M1);  //Motor configuration
+MeMegaPiDCMotor motorLeft(M2);
+MeLineFollower lineFinder(PORT7);  // Line Follower configuration
+void setup() {}
+
+
+void loop() {
+  int sensorState = lineFinder.readSensors();
+  int speed1 = 75;
+  int speed2 = 200;
+  switch (sensorState) {
+
+    case S1_IN_S2_IN:
+      motorRight.run(-speed2);
+      motorLeft.run(speed2);
+      break;
+
+    case S1_IN_S2_OUT:
+      motorRight.run(-speed1);
+      motorLeft.run(-speed1);
+      delay(50);
+      break;
+
+    case S1_OUT_S2_IN:
+      motorRight.run(speed1);
+      motorLeft.run(speed1);
+      delay(50);
+      break;
+
+    case S1_OUT_S2_OUT:
+      int a, i = 0;
+      while (sensorState == S1_OUT_S2_OUT) {
+        for (i = 0; i <= 1; i++) {
+          motorRight.run(-speed1);
+          motorLeft.run(-speed1);
+          delay(350);
+          if (i == 1) { break; }
+          for (a = 0; a <= 1; a++) {
+            motorRight.run(speed1);
+            motorLeft.run(speed1);
+            delay(350);
+          }
+        }
+        motorRight.run(-speed2);
+        motorLeft.run(speed2);
+        delay(350);
+        break;
+      }
+
+    default:
+      break;
+  }
+
+  delay(100);
+}
