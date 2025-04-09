@@ -1,0 +1,146 @@
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <Arduino.h>
+#include <MeMegaPi.h>
+#include "MeEEPROM.h"
+
+MeMegaPiDCMotor motorRight(M1);
+MeMegaPiDCMotor motorLeft(M2);
+MeUltrasonicSensor ultraSensor(PORT7);
+MeLineFollower lineFinder(PORT6);
+
+const unsigned char hight_Speed = 200;
+const unsigned char low_Speed = 75;
+const unsigned int turnTime = 1250;
+bool start_sequence = true;
+bool end_sequence = false;
+
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void robot_Stop() {
+  motorRight.stop();
+  motorLeft.stop();
+}
+
+void robot_Run(int Speed) {
+  motorRight.run(-Speed);
+  motorLeft.run(Speed);
+  delay(500);
+}
+void robot_Back(int Speed) {
+  motorRight.run(Speed);
+  motorLeft.run(-Speed);
+  delay(500);
+}
+
+void turn_Right(int Speed) {
+  motorRight.run(Speed);
+  motorLeft.run(Speed);
+  Serial.println("Right");
+  delay(turnTime);
+}
+
+void turn_Left(int Speed) {
+  motorRight.run(-Speed);
+  motorLeft.run(-Speed);
+  Serial.println("Left");
+  delay(turnTime);
+}
+
+void Start_Sequence(int speed) {
+    turn_Left(speed);//Turn to be in front of the other robot
+    robot_Run(speed);//go forward to take the block
+    delay(1000);
+    //Arm sequence
+    robot_Back(speed);//go back to the line
+    turn_Right(speed);
+    //come back to the line
+    start_sequence = false;//Start setup is finished
+}
+
+void End_sequence(int speed) {
+    robot_Stop();
+    delay(1000);
+    turn_Left(speed);//get in place to detect when the other robot will arrive
+    end_sequence=true;
+}
+
+void Wait_for_Block() {
+    robot_Run(200);//Go forward to take the block
+    delay(1000);
+    robot_Stop();
+    delay(2000);
+    //Arm sequence
+    robot_Back(200);//Go back to ge the block
+    delay(1000);
+    turn_Right(200);// get in postion for the transfer
+    delay(6000);//wait for the other robot to place the block on us
+    turn_Left(200);
+    turn_Left(200);//turn around to go back to the start
+}
+
+void Line_Follower() {
+  int sensorState = lineFinder.readSensors();
+  int speed1 = 150;
+  int speed2 = 100;
+  switch (sensorState) {
+
+    case S1_IN_S2_IN:
+      motorRight.run(-speed2);
+      motorLeft.run(speed2);
+      break;
+
+    case S1_IN_S2_OUT:
+      motorRight.run(-speed1);
+      motorLeft.run(-speed1);
+      break;
+
+    case S1_OUT_S2_IN:
+      motorRight.run(speed1);
+      motorLeft.run(speed1);
+      break;
+
+    case S1_OUT_S2_OUT:
+      int a, i = 0;
+      while (sensorState == S1_OUT_S2_OUT) {
+        for (i = 0; i <= 1; i++) {
+          motorRight.run(-speed1);
+          motorLeft.run(-speed1);
+          delay(350);
+          if (i == 1) { break; }
+          for (a = 0; a <= 1; a++) {
+            motorRight.run(speed1);
+            motorLeft.run(speed1);
+            delay(350);
+          }
+        }
+        motorRight.run(-speed2);
+        motorLeft.run(speed2);
+        delay(350);
+        break;
+      }
+
+    default:
+      break;
+  }
+
+  delay(100);
+}
+
+
+void loop() {
+
+  if (start_sequence == true) { //do the starting sequence
+    Start_Sequence(200);}
+
+  if (ultraSensor.distanceCm() <= 25){//Dectect when we arrived at the end
+    End_sequence(200);
+  }
+  if ((ultraSensor.distanceCm() <= 35)&&(end_sequence==true)){//Wait to detect the other robot arrival and make sure that we are in place
+     Wait_for_Block();
+  }
+  Line_Follower();
+}
