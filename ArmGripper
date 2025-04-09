@@ -1,0 +1,115 @@
+#include <MeMegaPi.h>
+
+MeEncoderOnBoard Encoder_1(SLOT3);
+MeMegaPiDCMotor gripper(12);
+
+void isr_process_encoder1(void)
+{
+  if(digitalRead(Encoder_1.getPortB()) == 0)
+  {
+    Encoder_1.pulsePosMinus();
+  }
+  else
+  {
+    Encoder_1.pulsePosPlus();
+  }
+}
+
+void setup()
+{
+  attachInterrupt(Encoder_1.getIntNum(), isr_process_encoder1, RISING);
+  Serial.begin(115200);
+  
+  // Set PWM 8KHz
+  TCCR1A = _BV(WGM10);
+  TCCR1B = _BV(CS11) | _BV(WGM12);
+
+  TCCR2A = _BV(WGM21) | _BV(WGM20);
+  TCCR2B = _BV(CS21);
+
+  Encoder_1.setPulse(7);
+  Encoder_1.setRatio(26.9);
+  Encoder_1.setPosPid(1.8, 0, 1.2);
+  Encoder_1.setSpeedPid(0.18, 0, 0);
+ 
+  // Move Encoder 1 to the top of its range (negative value)
+  Encoder_1.moveTo(-3000, 300); // Adjust this value to match the top of the range for Encoder 1
+  encoderLooper();
+
+  gripper.run(-100);
+  delay(1000);
+  gripper.stop();
+  Serial.println("Start Open");
+
+  // After the movement, set CurPos to 0 for both encoders
+  Encoder_1.updateCurPos();
+}
+
+void encoderLooper()  {
+  Encoder_1.loop();
+  Serial.println("CurPos 1:");
+  Serial.println(Encoder_1.getCurPos());
+}
+
+void armPosChoice(int choice) {
+    switch(choice)  // Just use the integer directly, no need for extra casting
+    {
+      case 0: //start pos
+        Encoder_1.moveTo(0, 300);
+        gripper.run(100);
+        delay(1000);
+        gripper.stop();
+        Serial.println("Start Pos");
+        break;
+      case 1: //robot 2 pos
+        Encoder_1.moveTo(360, 300);
+        gripper.run(-100);
+        delay(1000);
+        gripper.stop();
+        Serial.println("Robot 2 Pos");
+        break;
+      case 2: //ground pos
+        Encoder_1.moveTo(3600, 300);
+        gripper.run(-100);  //close
+        delay(1000);
+        gripper.stop();
+        Serial.println("Ground Pos");
+        break;
+      case 3: //ground to robot pos
+        Encoder_1.moveTo(-360, 300);
+        gripper.run(100); //open
+        delay(1000);
+        gripper.stop();
+        Serial.println("Ground2Robot Pos");
+        break;
+      case 4: //ground to top pos
+        Encoder_1.moveTo(-3600, 300);
+        gripper.run(100);
+        delay(1000);
+        gripper.stop();
+        Serial.println("Ground2Top Pos");
+        break;
+      default:
+        break;
+    }
+  
+  encoderLooper();
+}
+
+void loop()
+{
+  armPosChoice(0);  // Now using integer values
+  delay(5000);
+
+  armPosChoice(1);
+  delay(5000);
+
+  armPosChoice(2);
+  delay(5000);
+
+  armPosChoice(3);
+  delay(5000);
+
+  armPosChoice(4);
+  delay(5000);
+}
